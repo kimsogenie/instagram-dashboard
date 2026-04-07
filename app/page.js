@@ -357,7 +357,7 @@ export default function Home() {
   const [sortKey,      setSortKey]      = useState("reach");
   const [sortAsc,      setSortAsc]      = useState(false);
   const [checked,      setChecked]      = useState({});
-  const [chartFilter,  setChartFilter]  = useState("all");
+
   const fileRef = useRef(null);
 
   const cfg = platform ? PLATFORMS[platform] : null;
@@ -367,7 +367,7 @@ export default function Home() {
     if (p === platform) return;
     setPlatform(p);
     setSortKey(PLATFORMS[p].metricKeys[PLATFORMS[p].metricKeys.length - 1]);
-    setChartFilter("all");
+
     setData([]); setChecked({});
     setCsvText(""); setFileText(null); setSelectedFile(null); setError("");
     if (view === "dashboard") setView("input");
@@ -398,7 +398,7 @@ export default function Home() {
   }
 
   function goBack() {
-    setView("input"); setChecked({}); setChartFilter("all");
+    setView("input"); setChecked({});
   }
 
 
@@ -413,29 +413,21 @@ export default function Home() {
   const maxes = {};
   if (cfg) cfg.metricKeys.forEach((k) => { maxes[k] = data.length ? Math.max(...data.map((d) => d[k] || 0)) : 0; });
 
-  /* ── chart filter ── */
-  const activeFilter = cfg?.filterOptions.find((f) => f.key === chartFilter);
-  const filteredData = (() => {
-    if (!cfg || chartFilter === "all") return data;
-    const sk = activeFilter?.sortKey;
-    return sk ? [...data].sort((a, b) => b[sk] - a[sk]).slice(0, 3) : data;
-  })();
-
-  const isTop3 = chartFilter !== "all";
-  const labels     = filteredData.map((d) => shortLabel(d.title));
-  const fullTitles = filteredData.map((d) => d.title);
+  /* ── chart data (always full) ── */
+  const labels     = data.map((d) => shortLabel(d.title));
+  const fullTitles = data.map((d) => d.title);
 
   /* ── chart data ── */
   // Main bar: reach (+ views for facebook)
   const mainBarDatasets = cfg ? (
     cfg.id === "facebook"
       ? [
-          { label:"도달", data:filteredData.map((d) => d.reach), backgroundColor:NEON.reach, borderRadius:4, borderSkipped:false },
-          { label:"조회", data:filteredData.map((d) => d.views), backgroundColor:NEON.views, borderRadius:4, borderSkipped:false },
+          { label:"도달", data:data.map((d) => d.reach), backgroundColor:NEON.reach, borderRadius:4, borderSkipped:false },
+          { label:"조회", data:data.map((d) => d.views), backgroundColor:NEON.views, borderRadius:4, borderSkipped:false },
         ]
       : [
-          { label:"도달", data:filteredData.map((d) => d.reach), backgroundColor:NEON.reach, borderRadius:4, borderSkipped:false },
-          { label:"총 인게이지먼트", data:filteredData.map((d) => (d.likes||0)+(d.comments||0)+(d.saves||0)+(d.shares||0)), backgroundColor:NEON.reach2, borderRadius:4, borderSkipped:false },
+          { label:"도달", data:data.map((d) => d.reach), backgroundColor:NEON.reach, borderRadius:4, borderSkipped:false },
+          { label:"총 인게이지먼트", data:data.map((d) => (d.likes||0)+(d.comments||0)+(d.saves||0)+(d.shares||0)), backgroundColor:NEON.reach2, borderRadius:4, borderSkipped:false },
         ]
   ) : [];
 
@@ -449,7 +441,7 @@ export default function Home() {
     labels,
     datasets: engKeys.map((k, i) => ({
       label: engLabels[i],
-      data:  filteredData.map((d) => d[k] || 0),
+      data:  data.map((d) => d[k] || 0),
       backgroundColor: engColors[i],
       borderRadius: 4,
       borderSkipped: false,
@@ -460,7 +452,7 @@ export default function Home() {
     labels,
     datasets: engKeys.map((k, i) => ({
       label: engLabels[i],
-      data:  filteredData.map((d) => d[k] || 0),
+      data:  data.map((d) => d[k] || 0),
       borderColor: engColors[i],
       backgroundColor: "transparent",
       borderWidth: 2,
@@ -481,9 +473,9 @@ export default function Home() {
   };
 
   const mainBarScale = cfg?.id === "facebook"
-    ? smartYScale(filteredData, ["reach","views"])
+    ? smartYScale(data, ["reach","views"])
     : { min: 0 };
-  const engScale = smartYScale(filteredData, engKeys);
+  const engScale = smartYScale(data, engKeys);
 
   /* ══════════════════════════════════
      INPUT SCREEN
@@ -659,59 +651,27 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Chart filter + section */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, flexWrap:"wrap", gap:8 }}>
-        <div style={{ fontSize:10, color:"#888", letterSpacing:"0.14em", textTransform:"uppercase", fontWeight:600 }}>데이터 흐름</div>
-        <div style={{ display:"flex", gap:6 }}>
-          {cfg.filterOptions.map(({ key, label }) => (
-            <button key={key} onClick={() => setChartFilter(key)} style={{
-              background: chartFilter === key ? "#fff" : "transparent",
-              color:      chartFilter === key ? "#000" : "#666",
-              border:    `1px solid ${chartFilter === key ? "#fff" : "#2a2a2a"}`,
-              borderRadius:20, padding:"5px 12px", fontSize:11,
-              fontWeight: chartFilter === key ? 600 : 400,
-              cursor:"pointer", fontFamily:"inherit",
-            }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      {/* ── 전체 흐름 차트 ── */}
+      <div style={{ fontSize:10, color:"#888", letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>데이터 흐름</div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:28 }}>
-        {/* Main bar chart */}
         <div style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:12, padding:20, gridColumn:"span 2" }}>
           <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:4 }}>
             {cfg.id === "facebook" ? "게시물별 도달 & 조회" : "게시물별 도달 & 인게이지먼트"}
           </div>
           <div style={{ fontSize:11, color:"#888", marginBottom:16 }}>
-            {isTop3 ? `${activeFilter?.label} — ${filteredData.map(d=>d.title).join(" / ")}` : `전체 ${data.length}개 게시물`}
-            {" — 막대 위에 마우스를 올리면 전체 제목 확인 가능"}
+            전체 {data.length}개 게시물 — 막대 위에 마우스를 올리면 전체 제목 확인 가능
           </div>
           <div style={{ height:220 }}>
             <Bar data={{ labels, datasets: mainBarDatasets }} options={makeChartOpts(mainBarScale, fullTitles)} />
           </div>
         </div>
-
-        {/* Engagement chart: grouped bar when Top3, line when all */}
         <div style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:12, padding:20 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:4 }}>
-            {isTop3 ? `${activeFilter?.label} 인게이지먼트 비교` : "인게이지먼트 추이"}
-          </div>
-          <div style={{ fontSize:11, color:"#888", marginBottom:16 }}>
-            {isTop3
-              ? "선택된 Top 3 게시물의 모든 인게이지먼트 지표 비교"
-              : "게시 순서에 따른 각 지표 변화"}
-          </div>
+          <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:4 }}>인게이지먼트 추이</div>
+          <div style={{ fontSize:11, color:"#888", marginBottom:16 }}>게시 순서에 따른 각 지표 변화</div>
           <div style={{ height:200 }}>
-            {isTop3
-              ? <Bar data={engGroupedBar} options={makeChartOpts(smartYScale(filteredData, engKeys), fullTitles)} />
-              : <Line data={engLine} options={makeChartOpts(engScale, fullTitles)} />
-            }
+            <Line data={engLine} options={makeChartOpts(engScale, fullTitles)} />
           </div>
         </div>
-
-        {/* Donut */}
         <div style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:12, padding:20 }}>
           <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:4 }}>인게이지먼트 구성 비율</div>
           <div style={{ fontSize:11, color:"#888", marginBottom:16 }}>전체 데이터 기준 각 지표의 비중</div>
@@ -726,6 +686,38 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* ── Top 3 인게이지먼트 비교 (항상 고정) ── */}
+      <div style={{ fontSize:10, color:"#888", letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>Top 3 인게이지먼트 비교</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, marginBottom:28 }}>
+        {cfg.filterOptions.filter(f => f.sortKey).map(({ label, sortKey: sk }) => {
+          const top3 = [...data].sort((a, b) => b[sk] - a[sk]).slice(0, 3);
+          const t3labels = top3.map((d) => shortLabel(d.title));
+          const t3titles = top3.map((d) => d.title);
+          const t3bar = {
+            labels: t3labels,
+            datasets: engKeys.map((k, i) => ({
+              label: engLabels[i],
+              data: top3.map((d) => d[k] || 0),
+              backgroundColor: engColors[i],
+              borderRadius: 4,
+              borderSkipped: false,
+            })),
+          };
+          return (
+            <div key={sk} style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:12, padding:20 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:4 }}>{label}</div>
+              <div style={{ fontSize:11, color:"#888", marginBottom:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {top3.map(d => d.title).join(" · ")}
+              </div>
+              <div style={{ height:200 }}>
+                <Bar data={t3bar} options={makeChartOpts(smartYScale(top3, engKeys), t3titles)} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
 
       {/* Metric Cards */}
       <div style={{ fontSize:10, color:"#888", letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>지표별 최고 성과 콘텐츠</div>
