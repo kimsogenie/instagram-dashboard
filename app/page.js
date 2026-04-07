@@ -97,16 +97,21 @@ function autoDetectMapping(headers) {
   return mapping;
 }
 
+function toInt(val) {
+  if (!val) return 0;
+  return parseInt(String(val).replace(/[,\s"']/g, ""), 10) || 0;
+}
+
 function applyMapping(rows, mapping) {
   return rows
     .map((row, i) => ({
       title: row[mapping.title] || `게시물 ${i + 1}`,
       date: row[mapping.date] || "",
-      likes: parseInt(row[mapping.likes]) || 0,
-      comments: parseInt(row[mapping.comments]) || 0,
-      saves: parseInt(row[mapping.saves]) || 0,
-      shares: parseInt(row[mapping.shares]) || 0,
-      reach: parseInt(row[mapping.reach]) || 0,
+      likes: toInt(row[mapping.likes]),
+      comments: toInt(row[mapping.comments]),
+      saves: toInt(row[mapping.saves]),
+      shares: toInt(row[mapping.shares]),
+      reach: toInt(row[mapping.reach]),
     }))
     .filter((d) => REQUIRED_NUMERIC.some((k) => d[k] > 0));
 }
@@ -242,6 +247,7 @@ export default function Home() {
   const [aiChecklist, setAiChecklist] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(false);
+  const [chartFilter, setChartFilter] = useState("all"); // "all" | "top3_reach" | "top3_likes" | "top3_comments"
   const fileRef = useRef(null);
 
   function readFile(file) {
@@ -310,26 +316,34 @@ export default function Home() {
     ];
   })() : [];
 
-  const labels = data.map((d) => shortLabel(d.title));
-  const fullTitles = data.map((d) => d.title);
-  const reachScaleY = smartYScale(data, ["reach", ...data.map(() => 0)]);
-  const trendScaleY = smartYScale(data, ["likes","comments","saves","shares"]);
+  /* Chart filter */
+  const filteredData = (() => {
+    if (chartFilter === "top3_reach") return [...data].sort((a,b) => b.reach - a.reach).slice(0, 3);
+    if (chartFilter === "top3_likes") return [...data].sort((a,b) => b.likes - a.likes).slice(0, 3);
+    if (chartFilter === "top3_comments") return [...data].sort((a,b) => b.comments - a.comments).slice(0, 3);
+    return data;
+  })();
+
+  const labels = filteredData.map((d) => shortLabel(d.title));
+  const fullTitles = filteredData.map((d) => d.title);
+  const reachScaleY = smartYScale(filteredData, ["reach"]);
+  const trendScaleY = smartYScale(filteredData, ["likes","comments","saves","shares"]);
 
   const reachData = {
     labels,
     datasets: [
-      { label: "도달", data: data.map((d) => d.reach), backgroundColor: NEON.reach, borderRadius: 4, borderSkipped: false },
-      { label: "총 인게이지먼트", data: data.map((d) => d.likes+d.comments+d.saves+d.shares), backgroundColor: NEON.reach2, borderRadius: 4, borderSkipped: false },
+      { label: "도달", data: filteredData.map((d) => d.reach), backgroundColor: NEON.reach, borderRadius: 4, borderSkipped: false },
+      { label: "총 인게이지먼트", data: filteredData.map((d) => d.likes+d.comments+d.saves+d.shares), backgroundColor: NEON.reach2, borderRadius: 4, borderSkipped: false },
     ],
   };
 
   const trendData = {
     labels,
     datasets: [
-      { label: "좋아요", data: data.map((d) => d.likes), borderColor: NEON.likes, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.likes, tension: 0.3 },
-      { label: "댓글", data: data.map((d) => d.comments), borderColor: NEON.comments, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.comments, tension: 0.3 },
-      { label: "저장", data: data.map((d) => d.saves), borderColor: NEON.saves, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.saves, tension: 0.3 },
-      { label: "공유", data: data.map((d) => d.shares), borderColor: NEON.shares, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.shares, tension: 0.3 },
+      { label: "좋아요", data: filteredData.map((d) => d.likes), borderColor: NEON.likes, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.likes, tension: 0.3 },
+      { label: "댓글", data: filteredData.map((d) => d.comments), borderColor: NEON.comments, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.comments, tension: 0.3 },
+      { label: "저장", data: filteredData.map((d) => d.saves), borderColor: NEON.saves, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.saves, tension: 0.3 },
+      { label: "공유", data: filteredData.map((d) => d.shares), borderColor: NEON.shares, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.shares, tension: 0.3 },
     ],
   };
 
@@ -377,7 +391,7 @@ export default function Home() {
             <input type="file" accept=".csv,.txt" ref={fileRef} style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); }} />
             <div style={{ fontSize: 26, marginBottom: 10, opacity: 0.35 }}>📂</div>
             <div style={{ fontSize: 14, color: "#888", marginBottom: 6, fontWeight: 500 }}>CSV 파일 업로드</div>
-            <div style={{ fontSize: 12, color: "#444" }}>클릭하거나 파일을 여기로 드래그하세요</div>
+            <div style={{ fontSize: 12, color: "#888" }}>클릭하거나 파일을 여기로 드래그하세요</div>
           </div>
 
           {selectedFile && (
@@ -391,7 +405,7 @@ export default function Home() {
           {/* Sample Download */}
           <button
             onClick={downloadSampleCSV}
-            style={{ width: "100%", background: "transparent", border: "1px solid #1e1e1e", borderRadius: 8, padding: "10px 0", fontSize: 12, color: "#666", cursor: "pointer", marginBottom: 16, fontFamily: "inherit" }}
+            style={{ width: "100%", background: "transparent", border: "1px solid #1e1e1e", borderRadius: 8, padding: "10px 0", fontSize: 12, color: "#aaa", cursor: "pointer", marginBottom: 16, fontFamily: "inherit" }}
           >
             📥 샘플 CSV 템플릿 다운로드 (형식 확인용)
           </button>
@@ -408,7 +422,7 @@ export default function Home() {
             placeholder="데이터 직접 붙여넣기"
             style={{ width: "100%", height: 100, background: "#111", border: "1px solid #1c1c1c", borderRadius: 10, color: "#ccc", fontSize: 12, padding: "12px 14px", resize: "vertical", outline: "none", fontFamily: "monospace", lineHeight: 1.6, marginBottom: 8 }}
           />
-          <div style={{ fontSize: 11, color: "#3d3d3d", marginBottom: 14, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 14, lineHeight: 1.7 }}>
             헤더명이 달라도 업로드 후 컬럼 매핑 화면에서 연결할 수 있어요.
           </div>
 
@@ -459,31 +473,43 @@ export default function Home() {
         ))}
       </div>
 
-      {/* AI Summary */}
-      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>AI 분석 요약</div>
-      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: "20px 22px", marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c084fc", opacity: 0.9, display: "inline-block" }} />
-          Claude AI 분석
-        </div>
-        {aiLoading && <div style={{ fontSize: 13, color: "#888", fontStyle: "italic" }}>데이터 분석 중...</div>}
-        {!aiLoading && aiError && (
-          <div style={{ fontSize: 12.5, color: "#aaa", lineHeight: 1.7 }}>
-            AI 분석을 사용하려면 <code style={{ background: "#1a1a1a", padding: "2px 6px", borderRadius: 4, color: "#c084fc", fontSize: 11 }}>ANTHROPIC_API_KEY</code> 환경변수를 등록해주세요.
-            <br />Vercel이라면 프로젝트 Settings → Environment Variables에서 추가하면 돼요.
-          </div>
-        )}
-        {!aiLoading && !aiError && aiSummary && (
-          <div style={{ fontSize: 13.5, color: "#ddd", lineHeight: 1.75 }}>{aiSummary}</div>
-        )}
-      </div>
-
       {/* Charts */}
-      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>데이터 흐름</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 600 }}>데이터 흐름</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[
+            { key: "all", label: "전체" },
+            { key: "top3_reach", label: "도달 Top 3" },
+            { key: "top3_likes", label: "좋아요 Top 3" },
+            { key: "top3_comments", label: "댓글 Top 3" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setChartFilter(key)}
+              style={{
+                background: chartFilter === key ? "#fff" : "transparent",
+                color: chartFilter === key ? "#000" : "#666",
+                border: `1px solid ${chartFilter === key ? "#fff" : "#2a2a2a"}`,
+                borderRadius: 20,
+                padding: "5px 12px",
+                fontSize: 11,
+                fontWeight: chartFilter === key ? 600 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.15s",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
         <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 20, gridColumn: "span 2" }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>게시물별 도달 & 인게이지먼트</div>
-          <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>가로축: 게시물 제목 (앞 8자) / 막대 위에 마우스를 올리면 전체 제목 확인 가능</div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>
+            {chartFilter === "all" ? `전체 ${data.length}개 게시물` : `${filteredData.map(d=>d.title).join(" / ")}`} — 막대 위에 마우스를 올리면 전체 제목 확인 가능
+          </div>
           <div style={{ height: 220 }}>
             <Bar data={reachData} options={barLineOpts({ min: 0 }, fullTitles)} />
           </div>
@@ -521,7 +547,7 @@ export default function Home() {
           return (
             <div key={key} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontSize: 10, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
+                <span style={{ fontSize: 10, color: "#ddd", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
                 {ratio && (
                   <span
                     title="이 게시물의 수치가 이번 달 전체 평균 대비 얼마나 높은지를 나타냅니다"
@@ -532,7 +558,7 @@ export default function Home() {
                 )}
               </div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", marginBottom: 5, letterSpacing: "-0.02em" }}>{top[key].toLocaleString()}</div>
-              <div style={{ fontSize: 13, color: "#bbb", marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={top.title}>{top.title}</div>
+              <div style={{ fontSize: 13, color: "#ddd", marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={top.title}>{top.title}</div>
               <div style={{ height: 1, background: "#1e1e1e", marginBottom: 12 }} />
               <div style={{ fontSize: 9.5, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5, fontWeight: 600 }}>인사이트</div>
               <div style={{ fontSize: 12.5, color: aiInsights[key] ? "#ccc" : "#999", lineHeight: 1.65 }}>{insight}</div>
@@ -545,7 +571,7 @@ export default function Home() {
       <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>다음 달을 위한 체크리스트</div>
       <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: "20px 22px", marginBottom: 28 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{aiChecklist.length ? "AI 액션 플랜" : "데이터 기반 점검 항목"}</div>
-        <div style={{ fontSize: 12, color: "#888", marginBottom: 18 }}>
+        <div style={{ fontSize: 12, color: "#aaa", marginBottom: 18 }}>
           {aiChecklist.length ? "Claude가 실제 수치 기반으로 도출한 다음 달 액션 포인트." : "인게이지먼트 패턴에서 도출한 액션 포인트."}
         </div>
         {checklistItems.map((item, i) => (
