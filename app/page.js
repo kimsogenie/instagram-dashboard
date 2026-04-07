@@ -137,11 +137,21 @@ function smartYScale(data, keys) {
   return { min: Math.max(0, min - pad), max: max + pad };
 }
 
+/* ─── Neon Color Palette ─── */
+const NEON = {
+  likes:    "#ff6b9d",   // 핑크
+  comments: "#00d4ff",   // 시안
+  saves:    "#7fff6b",   // 라임
+  shares:   "#ffb347",   // 오렌지
+  reach:    "#c084fc",   // 퍼플
+  reach2:   "#3b82f6",   // 블루 (인게이지먼트 바)
+};
+
 /* ─── Chart Base ─── */
-const TOOLTIP = { backgroundColor: "#1a1a1a", borderColor: "#2e2e2e", borderWidth: 1, titleColor: "#bbb", bodyColor: "#ddd", padding: 10 };
-const GRID_C = "rgba(255,255,255,0.05)";
-const TICK_C = "#666";
-const LEGEND = { labels: { color: "#888", font: { size: 11 }, boxWidth: 10, padding: 14 }, position: "top" };
+const TOOLTIP = { backgroundColor: "#141414", borderColor: "#2a2a2a", borderWidth: 1, titleColor: "#fff", bodyColor: "#ddd", padding: 10 };
+const GRID_C = "rgba(255,255,255,0.06)";
+const TICK_C = "#888";
+const LEGEND = { labels: { color: "#ccc", font: { size: 11 }, boxWidth: 10, padding: 14 }, position: "top" };
 
 const barLineOpts = (scaleY, fullTitles) => ({
   responsive: true,
@@ -308,18 +318,18 @@ export default function Home() {
   const reachData = {
     labels,
     datasets: [
-      { label: "도달", data: data.map((d) => d.reach), backgroundColor: "rgba(255,255,255,0.82)", borderRadius: 3, borderSkipped: false },
-      { label: "총 인게이지먼트", data: data.map((d) => d.likes+d.comments+d.saves+d.shares), backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 3, borderSkipped: false },
+      { label: "도달", data: data.map((d) => d.reach), backgroundColor: NEON.reach, borderRadius: 4, borderSkipped: false },
+      { label: "총 인게이지먼트", data: data.map((d) => d.likes+d.comments+d.saves+d.shares), backgroundColor: NEON.reach2, borderRadius: 4, borderSkipped: false },
     ],
   };
 
   const trendData = {
     labels,
     datasets: [
-      { label: "좋아요", data: data.map((d) => d.likes), borderColor: "rgba(255,255,255,0.8)", backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 3, tension: 0.3 },
-      { label: "댓글", data: data.map((d) => d.comments), borderColor: "rgba(255,255,255,0.5)", backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 3, tension: 0.3 },
-      { label: "저장", data: data.map((d) => d.saves), borderColor: "rgba(255,255,255,0.3)", backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 3, tension: 0.3 },
-      { label: "공유", data: data.map((d) => d.shares), borderColor: "rgba(255,255,255,0.16)", backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 3, tension: 0.3 },
+      { label: "좋아요", data: data.map((d) => d.likes), borderColor: NEON.likes, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.likes, tension: 0.3 },
+      { label: "댓글", data: data.map((d) => d.comments), borderColor: NEON.comments, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.comments, tension: 0.3 },
+      { label: "저장", data: data.map((d) => d.saves), borderColor: NEON.saves, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.saves, tension: 0.3 },
+      { label: "공유", data: data.map((d) => d.shares), borderColor: NEON.shares, backgroundColor: "transparent", borderWidth: 2, pointRadius: 3, pointBackgroundColor: NEON.shares, tension: 0.3 },
     ],
   };
 
@@ -327,8 +337,8 @@ export default function Home() {
     labels: ["좋아요","댓글","저장","공유"],
     datasets: [{
       data: ["likes","comments","saves","shares"].map((k) => data.reduce((s,d) => s+d[k], 0)),
-      backgroundColor: ["rgba(255,255,255,0.82)","rgba(255,255,255,0.5)","rgba(255,255,255,0.3)","rgba(255,255,255,0.16)"],
-      borderColor: "#111", borderWidth: 2, hoverOffset: 5,
+      backgroundColor: [NEON.likes, NEON.comments, NEON.saves, NEON.shares],
+      borderColor: "#0c0c0c", borderWidth: 2, hoverOffset: 6,
     }],
   };
 
@@ -345,13 +355,13 @@ export default function Home() {
       )}
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 24px" }}>
         <div style={{ width: "100%", maxWidth: 540 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "#555", marginBottom: 14, fontWeight: 600 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "#888", marginBottom: 14, fontWeight: 600 }}>
             Instagram Analytics — Marketer Dashboard
           </div>
           <h1 style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2, marginBottom: 10, color: "#fff" }}>
             월간 인스타그램<br />성과 대시보드
           </h1>
-          <p style={{ color: "#777", fontSize: 13.5, lineHeight: 1.65, marginBottom: 28 }}>
+          <p style={{ color: "#aaa", fontSize: 13.5, lineHeight: 1.65, marginBottom: 28 }}>
             이번 달 게시물 데이터를 올리면 지표별 Best 콘텐츠,<br />
             트렌드 차트, AI 인사이트를 한번에 뽑아드려요.
           </p>
@@ -427,9 +437,9 @@ export default function Home() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "#555", marginBottom: 6, fontWeight: 600 }}>Instagram Analytics</div>
+          <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "#888", marginBottom: 6, fontWeight: 600 }}>Instagram Analytics</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>월간 성과 대시보드</div>
-          <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>총 {data.length}개 게시물 분석</div>
+          <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>총 {data.length}개 게시물 분석</div>
         </div>
         <button onClick={goBack} style={{ background: "transparent", color: "#555", border: "1px solid #1e1e1e", borderRadius: 8, padding: "8px 14px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← 재입력</button>
       </div>
@@ -443,56 +453,56 @@ export default function Home() {
           { label: "총 도달", val: data.reduce((s,d)=>s+d.reach,0).toLocaleString() },
         ].map((s) => (
           <div key={s.label} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "16px 18px" }}>
-            <div style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8, fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8, fontWeight: 600 }}>{s.label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>{s.val}</div>
           </div>
         ))}
       </div>
 
       {/* AI Summary */}
-      <div style={{ fontSize: 10, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>AI 분석 요약</div>
+      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>AI 분석 요약</div>
       <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: "20px 22px", marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.35, display: "inline-block" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c084fc", opacity: 0.9, display: "inline-block" }} />
           Claude AI 분석
         </div>
-        {aiLoading && <div style={{ fontSize: 13, color: "#444", fontStyle: "italic" }}>데이터 분석 중...</div>}
+        {aiLoading && <div style={{ fontSize: 13, color: "#888", fontStyle: "italic" }}>데이터 분석 중...</div>}
         {!aiLoading && aiError && (
-          <div style={{ fontSize: 12.5, color: "#777", lineHeight: 1.7 }}>
-            AI 분석을 사용하려면 <code style={{ background: "#1a1a1a", padding: "2px 6px", borderRadius: 4, color: "#999", fontSize: 11 }}>ANTHROPIC_API_KEY</code> 환경변수를 등록해주세요.
+          <div style={{ fontSize: 12.5, color: "#aaa", lineHeight: 1.7 }}>
+            AI 분석을 사용하려면 <code style={{ background: "#1a1a1a", padding: "2px 6px", borderRadius: 4, color: "#c084fc", fontSize: 11 }}>ANTHROPIC_API_KEY</code> 환경변수를 등록해주세요.
             <br />Vercel이라면 프로젝트 Settings → Environment Variables에서 추가하면 돼요.
           </div>
         )}
         {!aiLoading && !aiError && aiSummary && (
-          <div style={{ fontSize: 13.5, color: "#bbb", lineHeight: 1.75 }}>{aiSummary}</div>
+          <div style={{ fontSize: 13.5, color: "#ddd", lineHeight: 1.75 }}>{aiSummary}</div>
         )}
       </div>
 
       {/* Charts */}
-      <div style={{ fontSize: 10, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>데이터 흐름</div>
+      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>데이터 흐름</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
         <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 20, gridColumn: "span 2" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>게시물별 도달 & 인게이지먼트</div>
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 16 }}>가로축: 게시물 제목 (앞 8자) / 실제 제목은 막대 위에 마우스를 올리면 확인 가능</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>게시물별 도달 & 인게이지먼트</div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>가로축: 게시물 제목 (앞 8자) / 막대 위에 마우스를 올리면 전체 제목 확인 가능</div>
           <div style={{ height: 220 }}>
             <Bar data={reachData} options={barLineOpts({ min: 0 }, fullTitles)} />
           </div>
         </div>
         <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>지표 추이</div>
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 16 }}>게시 순서에 따른 각 지표 변화 — 마우스 오버 시 전체 제목 표시</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>지표 추이</div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>게시 순서에 따른 각 지표 변화 — 마우스 오버 시 전체 제목 표시</div>
           <div style={{ height: 200 }}>
             <Line data={trendData} options={barLineOpts(trendScaleY, fullTitles)} />
           </div>
         </div>
         <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>인게이지먼트 구성 비율</div>
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 16 }}>총 인게이지먼트에서 각 지표의 비중</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>인게이지먼트 구성 비율</div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>총 인게이지먼트에서 각 지표의 비중</div>
           <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Doughnut data={donutData} options={{
               responsive: true, maintainAspectRatio: false, cutout: "68%",
               plugins: {
-                legend: { labels: { color: "#888", font: { size: 11 }, boxWidth: 10, padding: 12 }, position: "right" },
+                legend: { labels: { color: "#ccc", font: { size: 11 }, boxWidth: 10, padding: 12 }, position: "right" },
                 tooltip: { ...TOOLTIP, callbacks: { label: (ctx) => { const t = ctx.dataset.data.reduce((a,b)=>a+b,0); const p = t ? ((ctx.parsed/t)*100).toFixed(1) : 0; return ` ${ctx.parsed.toLocaleString()} (${p}%)`; } } },
               },
             }} />
@@ -501,54 +511,62 @@ export default function Home() {
       </div>
 
       {/* Metric Cards */}
-      <div style={{ fontSize: 10, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>지표별 최고 성과 콘텐츠</div>
+      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>지표별 최고 성과 콘텐츠</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 10, marginBottom: 28 }}>
         {METRIC_KEYS.map(({ key, label }) => {
           const top = [...data].sort((a,b) => b[key]-a[key])[0];
           const ratio = safeRatio(top[key], avg(data, key));
           const insight = aiInsights[key] || FALLBACK_INSIGHTS[key];
+          const neonColor = { likes: NEON.likes, comments: NEON.comments, saves: NEON.saves, shares: NEON.shares, reach: NEON.reach }[key];
           return (
             <div key={key} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
-                {ratio && <span style={{ fontSize: 10, color: "#aaa", background: "#181818", padding: "3px 8px", borderRadius: 20 }}>{ratio}</span>}
+                <span style={{ fontSize: 10, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
+                {ratio && (
+                  <span
+                    title="이 게시물의 수치가 이번 달 전체 평균 대비 얼마나 높은지를 나타냅니다"
+                    style={{ fontSize: 10, color: neonColor, background: `${neonColor}18`, border: `1px solid ${neonColor}40`, padding: "3px 8px", borderRadius: 20, cursor: "default" }}
+                  >
+                    평균 대비 {ratio}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", marginBottom: 5, letterSpacing: "-0.02em" }}>{top[key].toLocaleString()}</div>
-              <div style={{ fontSize: 13, color: "#888", marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={top.title}>{top.title}</div>
+              <div style={{ fontSize: 13, color: "#bbb", marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={top.title}>{top.title}</div>
               <div style={{ height: 1, background: "#1e1e1e", marginBottom: 12 }} />
-              <div style={{ fontSize: 9.5, color: "#444", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5, fontWeight: 600 }}>인사이트</div>
-              <div style={{ fontSize: 12.5, color: aiInsights[key] ? "#aaa" : "#666", lineHeight: 1.65 }}>{insight}</div>
+              <div style={{ fontSize: 9.5, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5, fontWeight: 600 }}>인사이트</div>
+              <div style={{ fontSize: 12.5, color: aiInsights[key] ? "#ccc" : "#999", lineHeight: 1.65 }}>{insight}</div>
             </div>
           );
         })}
       </div>
 
       {/* Checklist */}
-      <div style={{ fontSize: 10, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>다음 달을 위한 체크리스트</div>
+      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>다음 달을 위한 체크리스트</div>
       <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, padding: "20px 22px", marginBottom: 28 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd", marginBottom: 4 }}>{aiChecklist.length ? "AI 액션 플랜" : "데이터 기반 점검 항목"}</div>
-        <div style={{ fontSize: 12, color: "#444", marginBottom: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{aiChecklist.length ? "AI 액션 플랜" : "데이터 기반 점검 항목"}</div>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 18 }}>
           {aiChecklist.length ? "Claude가 실제 수치 기반으로 도출한 다음 달 액션 포인트." : "인게이지먼트 패턴에서 도출한 액션 포인트."}
         </div>
         {checklistItems.map((item, i) => (
-          <div key={i} onClick={() => setChecked((p) => ({ ...p, [i]: !p[i] }))} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", borderBottom: i < checklistItems.length - 1 ? "1px solid #161616" : "none", cursor: "pointer" }}>
-            <div style={{ width: 18, height: 18, border: `1.5px solid ${checked[i] ? "#fff" : "#2a2a2a"}`, borderRadius: 5, flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", background: checked[i] ? "#fff" : "transparent", userSelect: "none" }}>
+          <div key={i} onClick={() => setChecked((p) => ({ ...p, [i]: !p[i] }))} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", borderBottom: i < checklistItems.length - 1 ? "1px solid #1a1a1a" : "none", cursor: "pointer" }}>
+            <div style={{ width: 18, height: 18, border: `1.5px solid ${checked[i] ? "#7fff6b" : "#2a2a2a"}`, borderRadius: 5, flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", background: checked[i] ? "#7fff6b" : "transparent", userSelect: "none" }}>
               {checked[i] && <span style={{ fontSize: 11, color: "#000", fontWeight: 700 }}>✓</span>}
             </div>
-            <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, flex: 1 }}>{item}</div>
+            <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.6, flex: 1 }}>{item}</div>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div style={{ fontSize: 10, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>전체 게시물</div>
+      <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>전체 게시물</div>
       <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 12, overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 620 }}>
           <thead>
             <tr>
               {[["title","게시물"],["date","날짜"],["likes","좋아요"],["comments","댓글"],["saves","저장"],["shares","공유"],["reach","도달"]].map(([k,l]) => (
                 <th key={k} onClick={() => { if(sortKey===k) setSortAsc(p=>!p); else { setSortKey(k); setSortAsc(false); } }}
-                  style={{ padding: "12px 16px", textAlign: "left", color: sortKey===k ? "#aaa" : "#444", fontWeight: 600, fontSize: 11, borderBottom: "1px solid #1e1e1e", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>
+                  style={{ padding: "12px 16px", textAlign: "left", color: sortKey===k ? "#fff" : "#888", fontWeight: 600, fontSize: 11, borderBottom: "1px solid #1e1e1e", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>
                   {l}{sortKey===k ? (sortAsc?" ↑":" ↓") : ""}
                 </th>
               ))}
@@ -556,11 +574,11 @@ export default function Home() {
           </thead>
           <tbody>
             {sortedData.map((post, i) => (
-              <tr key={i} style={{ borderBottom: i < sortedData.length - 1 ? "1px solid #141414" : "none" }}>
-                <td style={{ padding: "11px 16px", color: "#ccc", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={post.title}>{post.title}</td>
-                <td style={{ padding: "11px 16px", color: "#3d3d3d", fontFamily: "monospace", fontSize: 11 }}>{post.date}</td>
+              <tr key={i} style={{ borderBottom: i < sortedData.length - 1 ? "1px solid #171717" : "none" }}>
+                <td style={{ padding: "11px 16px", color: "#ddd", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={post.title}>{post.title}</td>
+                <td style={{ padding: "11px 16px", color: "#666", fontFamily: "monospace", fontSize: 11 }}>{post.date}</td>
                 {["likes","comments","saves","shares","reach"].map((k) => (
-                  <td key={k} style={{ padding: "11px 16px", color: post[k]===maxes[k] ? "#fff" : "#888", fontWeight: post[k]===maxes[k] ? 600 : 400, fontFamily: "monospace", fontSize: 12 }}>
+                  <td key={k} style={{ padding: "11px 16px", color: post[k]===maxes[k] ? "#fff" : "#aaa", fontWeight: post[k]===maxes[k] ? 700 : 400, fontFamily: "monospace", fontSize: 12 }}>
                     {post[k].toLocaleString()}
                   </td>
                 ))}
