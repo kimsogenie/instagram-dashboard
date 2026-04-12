@@ -304,6 +304,63 @@ function clearStorage(platform){
 }
 
 /* ═══════════════════════════════════════
+   ONBOARDING MODAL
+═══════════════════════════════════════ */
+const FEATURES=[
+  { icon:"📊", title:"지표별 Best 콘텐츠 분석", desc:"좋아요·댓글·저장·공유·도달 각각의 Top 게시물과 평균 대비 성과를 한눈에 확인" },
+  { icon:"📈", title:"데이터 흐름 차트", desc:"전체 추이, Top 3 인게이지먼트 비교, 도넛 구성 차트로 월간 패턴 시각화" },
+  { icon:"📅", title:"요일별 성과 분석", desc:"어떤 요일에 올린 콘텐츠가 가장 잘 반응했는지 자동 분석 — 다음 달 업로드 타임 최적화" },
+  { icon:"🏷️", title:"카테고리별 인사이트", desc:"CSV에 카테고리 열만 추가하면 콘텐츠 유형별 평균 인게이지먼트 자동 비교" },
+  { icon:"📉", title:"전월 대비 비교 (MoM)", desc:"전월 CSV를 같이 올리면 ▲▼ % 증감률 자동 계산 — 클라이언트 보고에 바로 활용" },
+  { icon:"📄", title:"PDF 보고서 저장", desc:"PDF 저장 버튼 한 번으로 대시보드 전체를 A4 보고서로 출력" },
+  { icon:"💾", title:"데이터 자동 저장", desc:"새로고침해도 데이터 유지 — 브라우저에 자동 저장, 다음 접속 시 바로 대시보드로" },
+  { icon:"📘", title:"Instagram + Facebook 지원", desc:"플랫폼 탭으로 Instagram과 Facebook 분석을 한 앱 안에서 모두 처리" },
+];
+
+function OnboardingModal({onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300,padding:24,overflowY:"auto"}}>
+      <div style={{background:"#111",border:"1px solid #222",borderRadius:18,padding:"36px 32px",width:"100%",maxWidth:600,maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:28,marginBottom:10}}>📱</div>
+          <div style={{fontSize:22,fontWeight:700,color:"#fff",marginBottom:6}}>SNS 성과 대시보드</div>
+          <div style={{fontSize:13,color:"#888",lineHeight:1.6}}>
+            CSV 하나 올리면 끝.<br/>마케터가 필요한 분석을 자동으로 뽑아드려요.
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:28}}>
+          {FEATURES.map(f=>(
+            <div key={f.title} style={{background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:10,padding:"14px 16px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <span style={{fontSize:18}}>{f.icon}</span>
+                <span style={{fontSize:12.5,fontWeight:600,color:"#ddd"}}>{f.title}</span>
+              </div>
+              <div style={{fontSize:11.5,color:"#666",lineHeight:1.6}}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:10,padding:"14px 16px",marginBottom:24}}>
+          <div style={{fontSize:12,color:"#888",lineHeight:1.7}}>
+            📥 <strong style={{color:"#ccc"}}>데이터 형식</strong> — 샘플 CSV를 다운받아 형식 확인 후 업로드하세요.<br/>
+            헤더명이 달라도 <strong style={{color:"#ccc"}}>컬럼 매핑</strong> 화면에서 직접 연결할 수 있어요.
+          </div>
+        </div>
+
+        <button onClick={onClose}
+          style={{width:"100%",background:"#fff",color:"#000",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          시작하기 →
+        </button>
+        <div style={{textAlign:"center",marginTop:10}}>
+          <span style={{fontSize:11,color:"#333"}}>다음 번엔 자동으로 건너뜁니다</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
    MAPPING UI
 ═══════════════════════════════════════ */
 function MappingUI({platform,headers,initialMapping,onConfirm,onCancel}){
@@ -400,14 +457,17 @@ export default function Home(){
   const[sortKey,setSortKey]=useState("reach");
   const[sortAsc,setSortAsc]=useState(false);
   const[checked,setChecked]=useState({});
+  const[showOnboarding,setShowOnboarding]=useState(false);
   const dashRef=useRef(null);
   const fileRef=useRef(null);
   const prevFileRef=useRef(null);
 
   const cfg=PLATFORMS[platform];
 
-  // localStorage load on mount
+  // localStorage load on mount + onboarding
   useEffect(()=>{
+    const seen=localStorage.getItem("sna_onboarding_seen");
+    if(!seen) setShowOnboarding(true);
     const saved=loadFromStorage(platform);
     if(saved?.data?.length){
       setData(saved.data);
@@ -415,7 +475,7 @@ export default function Home(){
       setSavedAt(saved.savedAt);
       setView("dashboard");
     }
-  },[platform]);
+  },[]);
 
   function selectPlatform(p){
     if(p===platform) return;
@@ -612,8 +672,14 @@ export default function Home(){
   /* ══════════════════════
      INPUT SCREEN
   ══════════════════════ */
+  function closeOnboarding(){
+    setShowOnboarding(false);
+    try{ localStorage.setItem("sna_onboarding_seen","1"); } catch(e){}
+  }
+
   if(view==="input") return(
     <>
+      {showOnboarding&&<OnboardingModal onClose={closeOnboarding}/>}
       {showMapping&&parsedRaw&&(
         <MappingUI platform={platform} headers={parsedRaw.headers}
           initialMapping={autoDetectMapping(cfg.colAliases,parsedRaw.headers)}
@@ -702,6 +768,7 @@ export default function Home(){
   ══════════════════════ */
   return(
     <div ref={dashRef} style={{maxWidth:1100,margin:"0 auto",padding:"28px 24px 64px"}}>
+      {showOnboarding&&<OnboardingModal onClose={closeOnboarding}/>}
 
       {/* Header */}
       <div className="no-print" style={{marginBottom:28}}>
