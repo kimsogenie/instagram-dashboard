@@ -680,10 +680,19 @@ tbody td:first-child {
 
 /* ── Print / PDF ── */
 @media print {
-  body { background: #0c0c0c !important; color: #fff !important; }
-  .no-print { display: none !important; }
-  .print-only { display: block !important; }
-  @page { margin: 16mm; size: A4; }
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    zoom: 0.62;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
 }
-
-.print-only { display: none; }
