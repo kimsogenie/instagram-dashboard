@@ -213,7 +213,6 @@ function applyMapping(rows,mapping,metricKeys){
 ═══════════════════════════════════════ */
 function parseDate(str) {
   if(!str) return null;
-  // Supported: YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY, MM/DD (assume current year)
   let d=null;
   const s=str.trim();
   if(/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s)){
@@ -314,7 +313,7 @@ const FEATURES=[
   { icon:"📉", title:"전월 대비 비교 (MoM)", desc:"전월 CSV를 같이 올리면 ▲▼ % 증감률 자동 계산 — 클라이언트 보고에 바로 활용" },
   { icon:"📄", title:"PDF 보고서 저장", desc:"PDF 저장 버튼 한 번으로 대시보드 전체를 A4 보고서로 출력" },
   { icon:"💾", title:"데이터 자동 저장", desc:"새로고침해도 데이터 유지 — 브라우저에 자동 저장, 다음 접속 시 바로 대시보드로" },
-  { icon:"📘", title:"Instagram + Facebook 지원", desc:"플랫폼 탭으로 Instagram과 Facebook 분석을 한 앱 안에서 모두 처리" },
+  { icon:"🤖", title:"AI 인사이트 자동 생성", desc:"실제 데이터를 기반으로 Claude AI가 지표별 인사이트와 다음 달 체크리스트를 자동으로 작성" },
 ];
 
 function OnboardingModal({onClose}){
@@ -449,11 +448,15 @@ export default function Home(){
   const[data,setData]=useState([]);
   const[prevData,setPrevData]=useState(null);
   const[savedAt,setSavedAt]=useState(null);
+  // ai
+  const[aiInsights,setAiInsights]=useState(null);
+  const[aiChecklist,setAiChecklist]=useState(null);
+  const[aiLoading,setAiLoading]=useState(false);
   // ui
   const[error,setError]=useState("");
   const[parsedRaw,setParsedRaw]=useState(null);
   const[showMapping,setShowMapping]=useState(false);
-  const[mappingTarget,setMappingTarget]=useState("current"); // "current"|"prev"
+  const[mappingTarget,setMappingTarget]=useState("current");
   const[sortKey,setSortKey]=useState("reach");
   const[sortAsc,setSortAsc]=useState(false);
   const[checked,setChecked]=useState({});
@@ -482,10 +485,10 @@ export default function Home(){
     setPlatform(p);
     setSortKey(PLATFORMS[p].metricKeys[0]);
     setData([]); setPrevData(null); setSavedAt(null); setChecked({});
+    setAiInsights(null); setAiChecklist(null); setAiLoading(false);
     setCsvText(""); setFileText(null); setSelectedFile(null);
     setPrevCsvText(""); setPrevFileText(null); setPrevSelectedFile(null);
     setShowPrevUpload(false); setError("");
-    // load storage for new platform
     const saved=loadFromStorage(p);
     if(saved?.data?.length){
       setData(saved.data); setPrevData(saved.prevData||null); setSavedAt(saved.savedAt);
@@ -517,7 +520,6 @@ export default function Home(){
     const parsed=applyMapping(rows,mapping,cfg.metricKeys);
     if(!parsed.length){setError("유효한 데이터 행이 없어요.");return;}
 
-    // parse prev if provided
     const prevRaw=prevFileText||prevCsvText;
     if(prevRaw?.trim()){
       const{headers:ph,rows:pr}=parseRawCSV(prevRaw);
@@ -545,6 +547,7 @@ export default function Home(){
     setSavedAt(now);
     saveToStorage(platform,current,prev);
     setView("dashboard");
+    fetchAIInsights(platform,current,prev);
   }
 
   function handleMappingConfirm(mapping){
@@ -556,6 +559,26 @@ export default function Home(){
     }
   }
 
+  async function fetchAIInsights(p,d,prev){
+    setAiLoading(true);
+    setAiInsights(null);
+    setAiChecklist(null);
+    try{
+      const res=await fetch("/api/insights",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({platform:p,data:d,prevData:prev}),
+      });
+      const json=await res.json();
+      if(json.insights) setAiInsights(json.insights);
+      if(json.checklist) setAiChecklist(json.checklist);
+    } catch(e){
+      console.error("AI insights 실패:",e);
+    } finally{
+      setAiLoading(false);
+    }
+  }
+
   function goBack(){
     setView("input"); setChecked({});
   }
@@ -563,6 +586,7 @@ export default function Home(){
   function clearData(){
     clearStorage(platform);
     setData([]); setPrevData(null); setSavedAt(null); setChecked({});
+    setAiInsights(null); setAiChecklist(null);
     setView("input");
   }
 
@@ -649,7 +673,7 @@ export default function Home(){
     })),
   };
 
-  const checklistItems=cfg.defaultChecklist(data.length?data:cfg.sampleData);
+  const checklistItems=aiChecklist||cfg.defaultChecklist(data.length?data:cfg.sampleData);
 
   /* ── PLATFORM TABS ── */
   const PlatformTabs=({marginBottom=28})=>(
@@ -699,7 +723,6 @@ export default function Home(){
             이번 달 데이터를 올리면 지표 분석, 요일별·카테고리별 인사이트,<br/>전월 비교까지 한번에 뽑아드려요.
           </p>
 
-          {/* 이번달 업로드 */}
           <div style={{fontSize:11,color:"#aaa",fontWeight:600,marginBottom:8,letterSpacing:"0.06em"}}>이번 달 데이터 *</div>
           <FileUpload label="CSV 파일 업로드" selectedFile={selectedFile}
             onFile={f=>{readFile(f,setFileText);setSelectedFile(f.name);}}
@@ -720,7 +743,6 @@ export default function Home(){
           <textarea value={csvText} onChange={e=>setCsvText(e.target.value)} placeholder="이번 달 데이터 직접 붙여넣기"
             style={{width:"100%",height:90,background:"#111",border:"1px solid #1c1c1c",borderRadius:10,color:"#ccc",fontSize:12,padding:"11px 14px",resize:"vertical",outline:"none",fontFamily:"monospace",lineHeight:1.6,marginBottom:16}}/>
 
-          {/* 전월 비교 토글 */}
           <button onClick={()=>setShowPrevUpload(p=>!p)}
             style={{width:"100%",background:"transparent",border:`1px dashed ${showPrevUpload?"#444":"#1e1e1e"}`,borderRadius:8,padding:"10px 0",fontSize:12,color:showPrevUpload?"#aaa":"#555",cursor:"pointer",marginBottom:14,fontFamily:"inherit",transition:"all 0.2s"}}>
             {showPrevUpload?"▲ 전월 비교 데이터 닫기":"＋ 전월 비교 데이터 추가 (선택사항)"}
@@ -753,7 +775,7 @@ export default function Home(){
               style={{flex:1,background:csvText.trim()||fileText?"#fff":"#181818",color:csvText.trim()||fileText?"#000":"#2d2d2d",border:"none",borderRadius:10,padding:13,fontSize:14,fontWeight:600,cursor:csvText.trim()||fileText?"pointer":"default",fontFamily:"inherit"}}>
               대시보드 생성 →
             </button>
-            <button onClick={()=>{setData(cfg.sampleData);setPrevData(null);setSavedAt(null);setView("dashboard");}}
+            <button onClick={()=>{setData(cfg.sampleData);setPrevData(null);setSavedAt(null);setView("dashboard");fetchAIInsights(platform,cfg.sampleData,null);}}
               style={{background:"transparent",color:"#555",border:"1px solid #1e1e1e",borderRadius:10,padding:"13px 18px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
               샘플 보기
             </button>
@@ -781,6 +803,8 @@ export default function Home(){
               총 {data.length}개 게시물 분석
               {savedAt&&<span style={{marginLeft:8,color:"#333"}}>· 저장됨 {new Date(savedAt).toLocaleDateString("ko-KR")}</span>}
               {prevData&&<span style={{marginLeft:8,color:"#3b82f6",fontSize:11}}>· 전월 비교 중</span>}
+              {aiLoading&&<span style={{marginLeft:8,color:"#c084fc",fontSize:11}}>· 🤖 AI 분석 중...</span>}
+              {!aiLoading&&aiInsights&&<span style={{marginLeft:8,color:"#7fff6b",fontSize:11}}>· 🤖 AI 인사이트 완료</span>}
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -882,7 +906,6 @@ export default function Home(){
             <div style={{height:220}}>
               <Bar data={dayBarData} options={makeChartOpts(smartYScale(dayStats,engKeys),dayStats.map(s=>`${s.day}요일 (${s.count}개 게시물)`))}/>
             </div>
-            {/* 요일 카드 */}
             <div style={{display:"grid",gridTemplateColumns:`repeat(${dayStats.length},1fr)`,gap:8,marginTop:16}}>
               {dayStats.map((s,i)=>(
                 <div key={s.day} style={{background:"#0d0d0d",borderRadius:8,padding:"10px 8px",textAlign:"center"}}>
@@ -941,7 +964,6 @@ export default function Home(){
           const top=[...data].sort((a,b)=>b[key]-a[key])[0];
           const ratio=safeRatio(top[key],avg(data,key));
           const nColor=METRIC_COLOR(key);
-          // MoM for this metric
           const prevAvgVal=prevData?avg(prevData,key):null;
           const change=prevAvgVal!=null?momChange(top[key],prevAvgVal):null;
           return(
@@ -958,8 +980,14 @@ export default function Home(){
                 </div>
               )}
               <div style={{height:1,background:"#1e1e1e",marginBottom:10}}/>
-              <div style={{fontSize:9.5,color:"#999",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5,fontWeight:600}}>인사이트</div>
-              <div style={{fontSize:12.5,color:"#ccc",lineHeight:1.65}}>{cfg.fallbackInsights[key]}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                <div style={{fontSize:9.5,color:"#999",textTransform:"uppercase",letterSpacing:"0.08em",fontWeight:600}}>
+                  {aiLoading?"🤖 AI 분석 중...":aiInsights?"🤖 AI 인사이트":"인사이트"}
+                </div>
+              </div>
+              <div style={{fontSize:12.5,color:aiLoading?"#444":"#ccc",lineHeight:1.65}}>
+                {aiLoading?"잠시만 기다려주세요...":(aiInsights?.[key]||cfg.fallbackInsights[key])}
+              </div>
             </div>
           );
         })}
@@ -968,8 +996,14 @@ export default function Home(){
       {/* 체크리스트 */}
       <div style={{fontSize:10,color:"#888",letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:14,fontWeight:600}}>다음 달을 위한 체크리스트</div>
       <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:12,padding:"20px 22px",marginBottom:28}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#fff",marginBottom:4}}>데이터 기반 점검 항목</div>
-        <div style={{fontSize:12,color:"#aaa",marginBottom:18}}>인게이지먼트 패턴에서 도출한 액션 포인트예요.</div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#fff"}}>데이터 기반 점검 항목</div>
+          {aiLoading&&<span style={{fontSize:11,color:"#c084fc"}}>🤖 AI 생성 중...</span>}
+          {!aiLoading&&aiChecklist&&<span style={{fontSize:11,color:"#7fff6b"}}>🤖 AI 생성 완료</span>}
+        </div>
+        <div style={{fontSize:12,color:"#aaa",marginBottom:18}}>
+          {aiChecklist?"Claude AI가 이번 달 데이터를 분석해서 작성한 액션 포인트예요.":"인게이지먼트 패턴에서 도출한 액션 포인트예요."}
+        </div>
         {checklistItems.map((item,i)=>(
           <div key={i} onClick={()=>setChecked(p=>({...p,[i]:!p[i]}))} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"11px 0",borderBottom:i<checklistItems.length-1?"1px solid #1a1a1a":"none",cursor:"pointer"}}>
             <div style={{width:18,height:18,border:`1.5px solid ${checked[i]?"#7fff6b":"#2a2a2a"}`,borderRadius:5,flexShrink:0,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",background:checked[i]?"#7fff6b":"transparent",userSelect:"none"}}>
