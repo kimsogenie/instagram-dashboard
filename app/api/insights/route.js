@@ -17,7 +17,7 @@ export async function POST(req) {
 
     const avg = (k) => data.reduce((s, d) => s + (d[k] || 0), 0) / data.length;
 
-    // 데이터 요약 (토큰 절약)
+    // 데이터 요약
     const summary = metricKeys.map(k => {
       const top = [...data].sort((a, b) => b[k] - a[k])[0];
       const bot = [...data].sort((a, b) => a[k] - b[k])[0];
@@ -34,6 +34,29 @@ export async function POST(req) {
         }).join("\n")
       : "";
 
+    // 요일별 데이터 추출 (최적 게시 시간 분석용)
+    const dayMap = {};
+    const engKeys = platform === "facebook"
+      ? ["likes","comments","shares","clicks"]
+      : ["likes","comments","saves","shares"];
+    data.forEach(d => {
+      if (d.date) {
+        const parsed = parseDate(d.date);
+        if (parsed) {
+          const day = ["일","월","화","수","목","금","토"][parsed.getDay()];
+          if (!dayMap[day]) dayMap[day] = [];
+          dayMap[day].push(d);
+        }
+      }
+    });
+    const dayAvgs = Object.entries(dayMap).map(([day, posts]) => {
+      const totalEng = posts.reduce((s, d) => s + engKeys.reduce((e, k) => e + (d[k]||0), 0), 0);
+      return { day, count: posts.length, avgEng: Math.round(totalEng / posts.length) };
+    }).sort((a, b) => b.avgEng - a.avgEng);
+    const dayInfo = dayAvgs.length
+      ? "\n\n요일별 평균 인게이지먼트: " + dayAvgs.map(d => `${d.day}요일(${d.count}개, 평균${d.avgEng})`).join(", ")
+      : "";
+
     const momSummary = prevData?.length
       ? "\n\n전월 대비: " + metricKeys.map(k => {
           const cur = avg(k);
@@ -46,10 +69,12 @@ export async function POST(req) {
     const prompt = `너는 SNS 마케팅 전문가야. 아래 ${platform === "facebook" ? "Facebook" : "Instagram"} 월간 성과 데이터를 분석해서 JSON을 반환해.
 
 [이번 달 데이터 요약 — 총 ${data.length}개 게시물]
-${summary}${catSummary}${momSummary}
+${summary}${catSummary}${dayInfo}${momSummary}
 
 반환 형식 (JSON만, 설명 없이):
 {
+  "monthly_summary": "이번 달 전체 성과 핵심 요약 1-2문장 (가장 눈에 띄는 수치와 변화 언급, 전월 비교 데이터 있으면 포함)",
+  "optimal_time": "요일별 데이터 기반으로 다음 달 최적 게시 요일 추천 1문장 (구체적인 요일과 이유 포함)",
   "insights": {
     ${metricKeys.map(k => `"${k}": "이 지표 Top 게시물에 대한 구체적 인사이트 (2문장, 다음 달 액션 포인트 포함)"`).join(",\n    ")}
   },
@@ -71,7 +96,7 @@ ${summary}${catSummary}${momSummary}
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -82,4 +107,22 @@ ${summary}${catSummary}${momSummary}
     console.error("insights error:", e);
     return Response.json({ error: e.message }, { status: 500 });
   }
+}
+
+// 날짜 파싱 헬퍼 (서버사이드용)
+function parseDate(str) {
+  if (!str) return null;
+  const s = str.trim();
+  let d = null;
+  if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s)) {
+    d = new Date(s.replace(/\//g, "-"));
+  } else if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(s)) {
+    const [m, dd, y] = s.split(/[\/\-]/);
+    d = new Date(`${y}-${m}-${dd}`);
+  } else if (/^\d{2}[\/\-]\d{2}$/.test(s)) {
+    const y = new Date().getFullYear();
+    const [m, dd] = s.split(/[\/\-]/);
+    d = new Date(`${y}-${m}-${dd}`);
+  }
+  return d && !isNaN(d) ? d : null;
 }
