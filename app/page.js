@@ -57,6 +57,7 @@ const PLATFORMS = {
       { label:"평균 좋아요", val:Math.round(avg(data,"likes")).toLocaleString(), prevNum: prev ? avg(prev,"likes") : null, curNum: avg(data,"likes") },
       { label:"평균 저장",  val:Math.round(avg(data,"saves")).toLocaleString(), prevNum: prev ? avg(prev,"saves") : null, curNum: avg(data,"saves") },
       { label:"총 도달",    val:data.reduce((s,d)=>s+d.reach,0).toLocaleString(), prevNum: prev ? prev.reduce((s,d)=>s+d.reach,0) : null, curNum: data.reduce((s,d)=>s+d.reach,0) },
+      { label:"평균 ER%",   val:`${calcAvgER(data,["likes","comments","saves","shares"])||"-"}%`, prevNum: prev ? parseFloat(calcAvgER(prev,["likes","comments","saves","shares"])) : null, curNum: parseFloat(calcAvgER(data,["likes","comments","saves","shares"])), isER:true },
     ],
     sampleCSV:"제목,날짜,카테고리,좋아요,댓글,저장,공유,도달\n신제품 출시 비하인드 컷,2025/03/03,제품,342,67,189,45,4820\n브랜드 히스토리 카드뉴스,2025/03/07,브랜드,198,12,412,23,3210\n이벤트 댓글로 친구 태그,2025/03/10,이벤트,521,234,43,187,7840\n가을 캠페인 티저 영상,2025/03/14,캠페인,689,89,156,92,9200\n제품 사용법 How-to,2025/03/18,정보,243,31,567,34,3890\n직원 인터뷰 릴스,2025/03/21,브랜드,412,56,89,123,6540\n오늘 뭐 입지 스타일링,2025/03/24,제품,578,145,234,67,7100\nOOTD 콜라보 챌린지,2025/03/27,이벤트,445,198,78,312,8200",
     sampleData:[
@@ -245,6 +246,23 @@ const momChange=(cur,prev)=>{
   return {pct:pct.toFixed(1),up:pct>=0};
 };
 
+// ER% 계산 (인게이지먼트율): 인스타그램 전용
+function calcER(post, engKeys) {
+  if (!post.reach || post.reach === 0) return null;
+  const engSum = engKeys.reduce((s, k) => s + (post[k] || 0), 0);
+  return (engSum / post.reach * 100).toFixed(2);
+}
+
+function calcAvgER(data, engKeys) {
+  const valid = data.filter(d => d.reach > 0);
+  if (!valid.length) return null;
+  const total = valid.reduce((s, d) => {
+    const engSum = engKeys.reduce((e, k) => e + (d[k] || 0), 0);
+    return s + engSum / d.reach * 100;
+  }, 0);
+  return (total / valid.length).toFixed(2);
+}
+
 function downloadSampleCSV(platform){
   const cfg=PLATFORMS[platform];
   const blob=new Blob(["\uFEFF"+cfg.sampleCSV],{type:"text/csv;charset=utf-8;"});
@@ -307,13 +325,11 @@ function clearStorage(platform){
 ═══════════════════════════════════════ */
 const FEATURES=[
   { icon:"📊", title:"지표별 Best 콘텐츠 분석", desc:"좋아요·댓글·저장·공유·도달 각각의 Top 게시물과 평균 대비 성과를 한눈에 확인" },
-  { icon:"📈", title:"데이터 흐름 차트", desc:"전체 추이, Top 3 인게이지먼트 비교, 도넛 구성 차트로 월간 패턴 시각화" },
-  { icon:"📅", title:"요일별 성과 분석", desc:"어떤 요일에 올린 콘텐츠가 가장 잘 반응했는지 자동 분석 — 다음 달 업로드 타임 최적화" },
-  { icon:"🏷️", title:"카테고리별 인사이트", desc:"CSV에 카테고리 열만 추가하면 콘텐츠 유형별 평균 인게이지먼트 자동 비교" },
-  { icon:"📉", title:"전월 대비 비교 (MoM)", desc:"전월 CSV를 같이 올리면 ▲▼ % 증감률 자동 계산 — 클라이언트 보고에 바로 활용" },
-  { icon:"📄", title:"PDF 보고서 저장", desc:"PDF 저장 버튼 한 번으로 대시보드 전체를 A4 보고서로 출력" },
-  { icon:"💾", title:"데이터 자동 저장", desc:"새로고침해도 데이터 유지 — 브라우저에 자동 저장, 다음 접속 시 바로 대시보드로" },
-  { icon:"🤖", title:"AI 인사이트 자동 생성", desc:"실제 데이터를 기반으로 Claude AI가 지표별 인사이트와 다음 달 체크리스트를 자동으로 작성" },
+  { icon:"📈", title:"ER% 인게이지먼트율", desc:"도달 대비 반응률(ER%)을 자동 계산. 실제 콘텐츠 효율을 수치로 파악" },
+  { icon:"🤖", title:"Claude AI 인사이트", desc:"실제 데이터 패턴을 읽어 구체적인 다음 달 액션 포인트와 월간 요약을 자동 생성" },
+  { icon:"📅", title:"요일별·카테고리별 분석", desc:"어떤 요일, 어떤 콘텐츠 유형이 가장 잘 먹히는지 — 최적 게시 타임 추천 포함" },
+  { icon:"📉", title:"전월 MoM 비교", desc:"전월 데이터를 함께 업로드하면 증감률을 자동으로 계산해 보여줘요" },
+  { icon:"📄", title:"PDF 저장", desc:"대시보드를 그대로 PDF로 저장. 클라이언트 월간 보고서로 바로 활용" },
 ];
 
 function OnboardingModal({onClose}){
@@ -451,6 +467,8 @@ export default function Home(){
   // ai
   const[aiInsights,setAiInsights]=useState(null);
   const[aiChecklist,setAiChecklist]=useState(null);
+  const[aiSummary,setAiSummary]=useState(null);
+  const[aiOptimalTime,setAiOptimalTime]=useState(null);
   const[aiLoading,setAiLoading]=useState(false);
   // ui
   const[error,setError]=useState("");
@@ -485,7 +503,7 @@ export default function Home(){
     setPlatform(p);
     setSortKey(PLATFORMS[p].metricKeys[0]);
     setData([]); setPrevData(null); setSavedAt(null); setChecked({});
-    setAiInsights(null); setAiChecklist(null); setAiLoading(false);
+    setAiInsights(null); setAiChecklist(null); setAiSummary(null); setAiOptimalTime(null); setAiLoading(false);
     setCsvText(""); setFileText(null); setSelectedFile(null);
     setPrevCsvText(""); setPrevFileText(null); setPrevSelectedFile(null);
     setShowPrevUpload(false); setError("");
@@ -561,8 +579,7 @@ export default function Home(){
 
   async function fetchAIInsights(p,d,prev){
     setAiLoading(true);
-    setAiInsights(null);
-    setAiChecklist(null);
+    setAiInsights(null); setAiChecklist(null); setAiSummary(null); setAiOptimalTime(null);
     try{
       const res=await fetch("/api/insights",{
         method:"POST",
@@ -572,6 +589,8 @@ export default function Home(){
       const json=await res.json();
       if(json.insights) setAiInsights(json.insights);
       if(json.checklist) setAiChecklist(json.checklist);
+      if(json.monthly_summary) setAiSummary(json.monthly_summary);
+      if(json.optimal_time) setAiOptimalTime(json.optimal_time);
     } catch(e){
       console.error("AI insights 실패:",e);
     } finally{
@@ -586,7 +605,7 @@ export default function Home(){
   function clearData(){
     clearStorage(platform);
     setData([]); setPrevData(null); setSavedAt(null); setChecked({});
-    setAiInsights(null); setAiChecklist(null);
+    setAiInsights(null); setAiChecklist(null); setAiSummary(null); setAiOptimalTime(null);
     setView("input");
   }
 
@@ -645,6 +664,15 @@ export default function Home(){
     return stat;
   }).filter(s=>s.count>0);
 
+  // best day (highest avg total engagement)
+  const bestDay=dayStats.length>0
+    ?dayStats.reduce((best,s)=>{
+        const eng=engKeys.reduce((sum,k)=>sum+s[k],0);
+        const bestEng=engKeys.reduce((sum,k)=>sum+best[k],0);
+        return eng>bestEng?s:best;
+      },dayStats[0])
+    :null;
+
   const dayBarData={
     labels:dayStats.map(s=>`${s.day} (${s.count}개)`),
     datasets:engKeys.map((k,i)=>({
@@ -674,6 +702,10 @@ export default function Home(){
   };
 
   const checklistItems=aiChecklist||cfg.defaultChecklist(data.length?data:cfg.sampleData);
+
+  // ER% 관련
+  const isInstagram = cfg.id === "instagram";
+  const erEngKeys = ["likes","comments","saves","shares"];
 
   /* ── PLATFORM TABS ── */
   const PlatformTabs=({marginBottom=28})=>(
@@ -793,7 +825,7 @@ export default function Home(){
       {showOnboarding&&<OnboardingModal onClose={closeOnboarding}/>}
 
       {/* Header */}
-      <div className="no-print" style={{marginBottom:28}}>
+      <div className="no-print" style={{marginBottom:20}}>
         <PlatformTabs marginBottom={16}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
           <div>
@@ -814,6 +846,26 @@ export default function Home(){
         </div>
       </div>
 
+      {/* AI 월간 요약 배너 */}
+      {(aiSummary||aiLoading)&&(
+        <div style={{
+          background:"linear-gradient(135deg,#1a0a2e 0%,#0a1520 100%)",
+          border:"1px solid #2a1f4e",
+          borderRadius:12,padding:"14px 20px",marginBottom:20,
+          display:"flex",alignItems:"center",gap:14,
+        }}>
+          <div style={{fontSize:22,flexShrink:0}}>{aiLoading?"⏳":"🤖"}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:"#c084fc",fontWeight:600,marginBottom:4,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+              AI 월간 요약
+            </div>
+            <div style={{fontSize:13,color:aiLoading?"#444":"#ddd",lineHeight:1.65}}>
+              {aiLoading?"Claude AI가 이번 달 데이터를 분석하고 있어요...":aiSummary}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Print header */}
       <div className="print-only" style={{marginBottom:24,borderBottom:"2px solid #333",paddingBottom:16}}>
         <div style={{fontSize:20,fontWeight:700,color:"#fff"}}>{cfg.name} 월간 성과 보고서</div>
@@ -825,9 +877,9 @@ export default function Home(){
         {cfg.summaryCards(data,prevData).map(s=>{
           const change=s.prevNum!=null?momChange(s.curNum,s.prevNum):null;
           return(
-            <div key={s.label} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,padding:"16px 18px"}}>
-              <div style={{fontSize:10,color:"#888",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,fontWeight:600}}>{s.label}</div>
-              <div style={{fontSize:22,fontWeight:700,color:"#fff"}}>{s.val}</div>
+            <div key={s.label} style={{background:"#111",border:`1px solid ${s.isER?"#2a1f4e":"#1e1e1e"}`,borderRadius:10,padding:"16px 18px"}}>
+              <div style={{fontSize:10,color:s.isER?"#c084fc":"#888",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,fontWeight:600}}>{s.label}</div>
+              <div style={{fontSize:22,fontWeight:700,color:s.isER?"#e2d9f3":"#fff"}}>{s.val}</div>
               {change&&(
                 <div style={{fontSize:11,marginTop:6,color:change.up?"#7fff6b":"#ff6b6b",fontWeight:600}}>
                   {change.up?"▲":"▼"} {Math.abs(change.pct)}% vs 전월
@@ -835,6 +887,9 @@ export default function Home(){
               )}
               {!change&&s.prev&&(
                 <div style={{fontSize:11,color:"#333",marginTop:6}}>전월: {s.prev}</div>
+              )}
+              {s.isER&&!change&&(
+                <div style={{fontSize:10,color:"#444",marginTop:6}}>(좋아요+댓글+저장+공유)/도달</div>
               )}
             </div>
           );
@@ -900,7 +955,7 @@ export default function Home(){
       {dayStats.length>0&&(
         <>
           <div style={{fontSize:10,color:"#888",letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:14,fontWeight:600}}>요일별 평균 인게이지먼트</div>
-          <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:12,padding:20,marginBottom:28}}>
+          <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:12,padding:20,marginBottom:bestDay?12:28}}>
             <div style={{fontSize:13,fontWeight:600,color:"#fff",marginBottom:4}}>요일별 평균 성과</div>
             <div style={{fontSize:11,color:"#888",marginBottom:16}}>어떤 요일에 올린 콘텐츠가 가장 잘 반응하는지 — 다음 달 업로드 타임 설정에 활용하세요</div>
             <div style={{height:220}}>
@@ -908,8 +963,10 @@ export default function Home(){
             </div>
             <div style={{display:"grid",gridTemplateColumns:`repeat(${dayStats.length},1fr)`,gap:8,marginTop:16}}>
               {dayStats.map((s,i)=>(
-                <div key={s.day} style={{background:"#0d0d0d",borderRadius:8,padding:"10px 8px",textAlign:"center"}}>
-                  <div style={{fontSize:15,fontWeight:700,color:DAY_COLORS[i%DAY_COLORS.length],marginBottom:6}}>{s.day}</div>
+                <div key={s.day} style={{background:bestDay?.day===s.day?"#0f0a1a":"#0d0d0d",border:`1px solid ${bestDay?.day===s.day?"#2a1f4e":"transparent"}`,borderRadius:8,padding:"10px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:15,fontWeight:700,color:DAY_COLORS[i%DAY_COLORS.length],marginBottom:6}}>
+                    {s.day}{bestDay?.day===s.day&&<span style={{fontSize:9,color:"#c084fc",marginLeft:3}}>★</span>}
+                  </div>
                   <div style={{fontSize:10,color:"#444",marginBottom:8}}>{s.count}개</div>
                   {engKeys.map((k,ki)=>(
                     <div key={k} style={{marginBottom:4}}>
@@ -921,6 +978,33 @@ export default function Home(){
               ))}
             </div>
           </div>
+
+          {/* Best 게시 요일 하이라이트 */}
+          {bestDay&&(
+            <div style={{
+              background:"#0f0a1a",border:"1px solid #2a1f4e",
+              borderRadius:12,padding:"16px 20px",marginBottom:28,
+              display:"flex",alignItems:"center",gap:16,
+            }}>
+              <div style={{
+                background:"#1a0f2e",border:"1px solid #3a2f5e",
+                borderRadius:10,padding:"10px 14px",textAlign:"center",flexShrink:0,minWidth:64,
+              }}>
+                <div style={{fontSize:22,fontWeight:800,color:DAY_COLORS[DAYS_KO.indexOf(bestDay.day)%DAY_COLORS.length]}}>
+                  {bestDay.day}
+                </div>
+                <div style={{fontSize:9,color:"#888",marginTop:2}}>Best 요일</div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#e2d9f3",marginBottom:4}}>
+                  📅 최적 게시 요일 — {bestDay.day}요일
+                </div>
+                <div style={{fontSize:12,color:"#aaa",lineHeight:1.6}}>
+                  {aiOptimalTime||`이번 달 ${bestDay.day}요일 업로드 게시물이 평균 대비 가장 높은 인게이지먼트를 기록했어요. 다음 달 주요 콘텐츠를 ${bestDay.day}요일에 맞춰 업로드해보세요.`}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1017,30 +1101,39 @@ export default function Home(){
       {/* 전체 테이블 */}
       <div style={{fontSize:10,color:"#888",letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:14,fontWeight:600}}>전체 게시물</div>
       <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:12,overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:620}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:isInstagram?700:620}}>
           <thead>
             <tr>
-              {[["title","게시물"],["date","날짜"],["category","카테고리"],...cfg.metricKeys.map(k=>[k,cfg.metricLabels[k]])].map(([k,l])=>(
-                <th key={k} onClick={()=>{if(sortKey===k)setSortAsc(p=>!p);else{setSortKey(k);setSortAsc(false);}}}
-                  style={{padding:"12px 14px",textAlign:"left",color:sortKey===k?"#fff":"#888",fontWeight:600,fontSize:11,borderBottom:"1px solid #1e1e1e",cursor:"pointer",whiteSpace:"nowrap"}}>
+              {[["title","게시물"],["date","날짜"],["category","카테고리"],...cfg.metricKeys.map(k=>[k,cfg.metricLabels[k]]),...(isInstagram?[["er","ER%"]]:[])].map(([k,l])=>(
+                <th key={k} onClick={()=>{if(k==="er")return;if(sortKey===k)setSortAsc(p=>!p);else{setSortKey(k);setSortAsc(false);}}}
+                  style={{padding:"12px 14px",textAlign:"left",color:sortKey===k?"#fff":"#888",fontWeight:600,fontSize:11,borderBottom:"1px solid #1e1e1e",cursor:k==="er"?"default":"pointer",whiteSpace:"nowrap"}}>
                   {l}{sortKey===k?(sortAsc?" ↑":" ↓"):""}
+                  {k==="er"&&<span style={{fontSize:9,color:"#555",marginLeft:4,fontWeight:400}}>eng/reach</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((post,i)=>(
-              <tr key={i} style={{borderBottom:i<sortedData.length-1?"1px solid #171717":"none"}}>
-                <td style={{padding:"11px 14px",color:"#ddd",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={post.title}>{post.title}</td>
-                <td style={{padding:"11px 14px",color:"#666",fontFamily:"monospace",fontSize:11}}>{post.date}</td>
-                <td style={{padding:"11px 14px",color:"#888",fontSize:12}}>{post.category||"—"}</td>
-                {cfg.metricKeys.map(k=>(
-                  <td key={k} style={{padding:"11px 14px",color:post[k]===maxes[k]?"#fff":"#aaa",fontWeight:post[k]===maxes[k]?700:400,fontFamily:"monospace",fontSize:12}}>
-                    {(post[k]||0).toLocaleString()}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {sortedData.map((post,i)=>{
+              const erVal = isInstagram ? calcER(post, erEngKeys) : null;
+              return(
+                <tr key={i} style={{borderBottom:i<sortedData.length-1?"1px solid #171717":"none"}}>
+                  <td style={{padding:"11px 14px",color:"#ddd",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={post.title}>{post.title}</td>
+                  <td style={{padding:"11px 14px",color:"#666",fontFamily:"monospace",fontSize:11}}>{post.date}</td>
+                  <td style={{padding:"11px 14px",color:"#888",fontSize:12}}>{post.category||"—"}</td>
+                  {cfg.metricKeys.map(k=>(
+                    <td key={k} style={{padding:"11px 14px",color:post[k]===maxes[k]?"#fff":"#aaa",fontWeight:post[k]===maxes[k]?700:400,fontFamily:"monospace",fontSize:12}}>
+                      {(post[k]||0).toLocaleString()}
+                    </td>
+                  ))}
+                  {isInstagram&&(
+                    <td style={{padding:"11px 14px",color:"#c084fc",fontFamily:"monospace",fontSize:12}}>
+                      {erVal!=null?`${erVal}%`:"—"}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
